@@ -2,6 +2,7 @@
  * application directory.
  * 
  * @author Juha Hyvärinen / Cyberlightning Ltd
+ * @author Jouni Mietola / Cyberlightning Ltd
  */
 
 package org.geoserver.w3ds.xml3d;
@@ -106,16 +107,6 @@ private static String getObjectClass(W3DSLayer layer, Feature feature) {
     return strb.toString();
 }
 
-private XML3DNode newObject(String id, String className) {
-    XML3DNode node = new XML3DNode("group");
-    xml3dRootNode.addXML3DNode(node);
-
-    node.addXML3DAttribute(new XML3DAttribute("id", id));
-    node.addXML3DAttribute(new XML3DAttribute("class", className));
-
-    return node;
-}
-
 public void addGeometry(Geometry geometry, String id, String mesh_ref, String className)
         throws IOException {
     
@@ -212,6 +203,8 @@ public void addW3DSLayer(W3DSLayer layer) {
     
     FeatureIterator<?> iterator = collection.features();
 
+    //read from database
+    
     try {
         SimpleFeature feature;
         SimpleFeatureType fType;
@@ -266,8 +259,19 @@ private void finalizeGeometry() {
 
     if (outputObject != null) {
         // Create new XML3DNode and add it to the XML3D root node
-        XML3DNode activeObject = newObject(geometryType.toString(), "NodeClassName");
-        activeObject.addXML3DNode(outputObject.toXML3DNode());
+    	
+        XML3DNode rootNode = new XML3DNode("xml3d");
+        xml3dRootNode.addXML3DNode(rootNode);
+
+        rootNode.addXML3DAttribute(new XML3DAttribute("xmlns", "http://www.xml3d.org/2009/xml3d"));
+        
+        //Add asset node to parentNode xml3d
+        XML3DNode node = new XML3DNode("asset");
+        node.addXML3DAttribute(new XML3DAttribute("id", "asset"));        
+        rootNode.addXML3DNode(node);
+    	
+        node.addXML3DNode(outputObject.toXML3DNode());
+    	   	
     }
 }
 
