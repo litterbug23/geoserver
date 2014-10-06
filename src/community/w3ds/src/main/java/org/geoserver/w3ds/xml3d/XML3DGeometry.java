@@ -298,7 +298,7 @@ private XML3DNode createXML3DNode() {
 
     // Formatter for double values, since we don't want more than 6 decimals
     DecimalFormat decimalFormat = new DecimalFormat("0.0#####");
-    rootNode = new XML3DNode("mesh");
+    rootNode = new XML3DNode("assetmesh");
 
     // TODO: Change XML3DNode name and type once XML3D supports drawing of simple lines!
     // NOTE: At the moment XML3D doesn't support line drawing!
