@@ -20,7 +20,7 @@ import org.geoserver.w3ds.types.GetSceneRequest;
 import org.geoserver.w3ds.types.W3DSLayerInfo;
 import org.geoserver.w3ds.utilities.Format;
 import org.geoserver.w3ds.utilities.Operation;
-import org.opengis.geometry.Envelope;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.SAXException;
 
@@ -84,7 +84,7 @@ public class GetSceneKvpRequestReader extends KvpRequestReader {
 					"Mandatory parameter BOUNDINGBOX is missing: "
 							+ rawKvp.toString());
 		}
-		Envelope bbox = KVPUtils.parseBbox(aux, crs, LOGGER);
+		ReferencedEnvelope bbox = KVPUtils.parseBbox(aux, crs, LOGGER);
 		aux = (String) rawKvp.get("LAYERS");
 		if (aux == null) {
 			throw new IllegalArgumentException(

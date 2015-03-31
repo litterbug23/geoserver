@@ -55,6 +55,8 @@
 		singleton="false" />
 	<bean id="W3DSXML3DResponse" class="org.geoserver.w3ds.responses.XML3DResponse"
 		singleton="false" />
+	<bean id="W3DSOctetStreamResponse" class="org.geoserver.w3ds.responses.OctetStreamResponse"
+        singleton="false" />
 
 	<bean id="getSceneKvpReaderRequestReader" class="org.geoserver.w3ds.kvp.GetSceneKvpRequestReader">
 		<constructor-arg value="org.geoserver.w3ds.types.GetSceneRequest" />

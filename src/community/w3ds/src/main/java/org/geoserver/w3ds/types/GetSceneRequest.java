@@ -17,22 +17,21 @@ import java.util.Map;
 import org.geoserver.config.GeoServer;
 import org.geoserver.w3ds.utilities.Format;
 import org.geoserver.w3ds.utilities.Operation;
-import org.opengis.geometry.Envelope;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
-
 import com.vividsolutions.jts.geom.Coordinate;
 
 public class GetSceneRequest extends W3DSRequest {
 	
 	// Mandatory Parameters
 	private CoordinateReferenceSystem crs;
-	private Envelope bbox;
+	private ReferencedEnvelope bbox;
 	private Format format;
 	private List<W3DSLayerInfo> layers;
 	
 	// OptionalParameters
 	private Coordinate offset;
-	
+
 	// Hacking to have KML (provisory)
 	private GeoServer geoServer;
 	
@@ -46,7 +45,7 @@ public class GetSceneRequest extends W3DSRequest {
 
 	public GetSceneRequest(String service, Operation request, String version,
 			String baseUrl, Map<String, String> kpvPrs, CoordinateReferenceSystem crs,
-			Envelope bbox, Format format, List<W3DSLayerInfo> layers,
+			ReferencedEnvelope bbox, Format format, List<W3DSLayerInfo> layers,
 			Coordinate offset) {
 		super(service, request, version, baseUrl, kpvPrs, new ArrayList<Format>());
 		this.crs = crs;
@@ -83,11 +82,11 @@ public class GetSceneRequest extends W3DSRequest {
 		this.crs = crs;
 	}
 
-	public Envelope getBbox() {
+	public ReferencedEnvelope getBbox() {
 		return bbox;
 	}
 
-	public void setBbox(Envelope bbox) {
+	public void setBbox(ReferencedEnvelope bbox) {
 		this.bbox = bbox;
 	}
 
@@ -117,7 +116,7 @@ public class GetSceneRequest extends W3DSRequest {
 	
 	public void setMandatoryParameters (String service, Operation request, String version,
 			String baseUrl, Map<String, String> kpvPrs, CoordinateReferenceSystem crs,
-			Envelope bbox, Format format, List<W3DSLayerInfo> layers) {
+			ReferencedEnvelope bbox, Format format, List<W3DSLayerInfo> layers) {
 		this.setService(service);
 		this.setRequest(request);
 		this.setVersion(version);

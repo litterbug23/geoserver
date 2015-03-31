@@ -35,7 +35,7 @@ import com.vividsolutions.jts.geom.Coordinate;
 
 public class KVPUtils {
 
-	public static Envelope parseBbox(String bboxstr,
+	public static ReferencedEnvelope parseBbox(String bboxstr,
 			CoordinateReferenceSystem crs, Logger LOGGER) throws Exception {
 		List unparsed = KvpUtils.readFlat(bboxstr, ",");
 		if (unparsed.size() < 4) {
@@ -158,7 +158,7 @@ public class KVPUtils {
 		return new W3DSLayerInfo(li, layerstr);
 	}
 
-	public static Coordinate parseOffset(String offsetstr, Envelope envelope) {
+	public static Coordinate parseOffset(String offsetstr, ReferencedEnvelope envelope) {
 		double[] offset = new double[3];
 		ReferencedEnvelope bbox = new ReferencedEnvelope(envelope);
 		List unparsed = KvpUtils.readFlat(offsetstr, ",");
