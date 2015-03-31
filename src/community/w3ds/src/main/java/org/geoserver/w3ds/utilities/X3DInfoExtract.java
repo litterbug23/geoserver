@@ -1,8 +1,11 @@
-/* This code is licensed under the GPL 2.0 license, available at the root
+/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+ * (c) 2001 - 2013 OpenPlans
+ * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  * 
  * @author Jorge Gustavo Rocha / Universidade do Minho
  * @author Nuno Carvalho Oliveira / Universidade do Minho 
+ * @author Juha Hyvärinen / Cyberlightning Ltd
  */
 
 package org.geoserver.w3ds.utilities;
@@ -10,7 +13,9 @@ package org.geoserver.w3ds.utilities;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -38,13 +43,13 @@ public class X3DInfoExtract {
 	private ResourceInfo resourceInfo;
 	private MetadataMap info;
 
-	public X3DInfoExtract(GeoServer geoServer) throws IOException,
-			ParserConfigurationException, SAXException {
+	public X3DInfoExtract(GeoServer geoServer) 
+	        throws IOException, ParserConfigurationException, SAXException {
 		init(geoServer.getCatalog(), true);
 	}
 
-	public X3DInfoExtract(Catalog catalog) throws IOException,
-			ParserConfigurationException, SAXException {
+	public X3DInfoExtract(Catalog catalog) 
+	        throws IOException, ParserConfigurationException, SAXException {
 		init(catalog, true);
 	}
 
@@ -61,8 +66,7 @@ public class X3DInfoExtract {
 	public X3DInfoExtract() {
 		catalog = null;
 		resourceLoader = null;
-		this.LOGGER = org.geotools.util.logging.Logging
-				.getLogger("org.geoserver.ows");
+		this.LOGGER = org.geotools.util.logging.Logging.getLogger("org.geoserver.ows");
 		this.tileSetsParser = new TileSetsParser();
 		this.LODSetsParser = new LODSetParser();
 		resourceInfo = null;
@@ -73,8 +77,7 @@ public class X3DInfoExtract {
 			ParserConfigurationException, SAXException {
 		this.catalog = catalog;
 		this.resourceLoader = this.catalog.getResourceLoader();
-		this.LOGGER = org.geotools.util.logging.Logging
-				.getLogger("org.geoserver.ows");
+		this.LOGGER = org.geotools.util.logging.Logging.getLogger("org.geoserver.ows");
 		this.resourceInfo = null;
 		info = new MetadataMap();
 		if (searchTL) {
@@ -120,6 +123,13 @@ public class X3DInfoExtract {
 		return new ArrayList<String>();
 	}
 
+	private Double getDistanceForLOD(Integer lod) {
+	    if (this.info.containsKey("x3d.distance"+lod)) {
+	        return Double.valueOf(this.info.get("x3d.distance"+lod).toString());
+	    }
+	    return 0.0;
+	}
+
 	public boolean isAX3DLayer() {
 		return getBoolean("x3d.activate");
 	}
@@ -135,9 +145,20 @@ public class X3DInfoExtract {
 	public boolean haveLODS() {
 		return getBoolean("x3d.hLOD");
 	}
+	
+	public Map<Integer, Double> getLodDistances() {
+	    Map<Integer, Double> distances = new HashMap<Integer, Double>();
 
-	public TileSet getTileSet() throws ParserConfigurationException,
-			SAXException, IOException {
+	    for (int i = 1; i < 11; i++) {
+	        String lod = "x3d.lod"+i;
+	        if (getBoolean(lod)) {
+	            distances.put(i, getDistanceForLOD(i));
+	        }
+	    }
+	    return distances;
+	}
+
+	public TileSet getTileSet() throws ParserConfigurationException, SAXException, IOException {
 		if (this.info.containsKey("x3d.tileSet")) {
 			String identifier = this.info.get("x3d.tileSet").toString();
 			if (identifier != null) {
@@ -150,8 +171,7 @@ public class X3DInfoExtract {
 		return null;
 	}
 
-	public LODSet getLODSet() throws ParserConfigurationException,
-			SAXException, IOException {
+	public LODSet getLODSet() throws ParserConfigurationException, SAXException, IOException {
 		if (this.info.containsKey("x3d.LODSet")) {
 			String identifier = this.info.get("x3d.LODSet").toString();
 			if (identifier != null) {
