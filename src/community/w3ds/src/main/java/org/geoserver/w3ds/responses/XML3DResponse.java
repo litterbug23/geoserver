@@ -44,6 +44,8 @@ public boolean canHandle(Operation operation) {
         GetSceneRequest getSceneRequest = (GetSceneRequest) requestObject;
         if (getSceneRequest.getFormat() == Format.XML3D) {
             return true;
+        } else if (getSceneRequest.getFormat() == Format.XML) {
+            return true;
         } else {
             return false;
         }
@@ -73,12 +75,17 @@ public String getAttachmentFileName(Object value, Operation operation) {
         for (W3DSLayerInfo w3dsLayerInfo : getSceneRequest.getLayers()) {
             fileName.append(w3dsLayerInfo.getLayerInfo().getName());
         }
+        if (getSceneRequest.getFormat() == Format.XML) {
+            fileName.append(".xml");
+        } else {
+            fileName.append(".xml3d");
+        }
     }
     // if (requestObject instanceof GetTileRequest) {
     // GetTileRequest getTileRequest = (GetTileRequest) requestObject;
     // fileName.append(getTileRequest.getLayer().getLayerInfo().getName());
     // }
-    fileName.append(".xml3d");
+
     return fileName.toString();
 }
 

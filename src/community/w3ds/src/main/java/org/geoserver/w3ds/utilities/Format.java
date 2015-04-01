@@ -19,7 +19,8 @@ public enum Format {
 	OLE("application/ole"),
 	HTML_XML3D("text/html xml3d"),
 	XML3D("model/xml3d xml"),
-        OCTET_STREAM("application/octet-stream");
+	XML("application/xml"),
+    OCTET_STREAM("application/octet-stream");
 	
 	private final String mimeType;
 	

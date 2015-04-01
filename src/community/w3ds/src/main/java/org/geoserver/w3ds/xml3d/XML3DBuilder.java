@@ -107,16 +107,6 @@ private static String getObjectClass(W3DSLayer layer, Feature feature) {
     return strb.toString();
 }
 
-private XML3DNode newObject(String id, String className) {
-    XML3DNode node = new XML3DNode("group");
-    xml3dRootNode.addXML3DNode(node);
-
-    node.addXML3DAttribute(new XML3DAttribute("id", id));
-    node.addXML3DAttribute(new XML3DAttribute("class", className));
-
-    return node;
-}
-
 public void addGeometry(Geometry geometry, String id, String mesh_ref, String className)
         throws IOException {
     
@@ -261,19 +251,26 @@ public void addW3DSLayer(W3DSLayer layer) {
 
 }
 
-private void finalizeGeometry() {
+private void finalizeGeometry(String nodename) {
     // Shader should be added by client software,
     // since server can't know what user wants to do with generated object.
 
     if (outputObject != null) {
         // Create new XML3DNode and add it to the XML3D root node
-        XML3DNode activeObject = newObject(geometryType.toString(), "NodeClassName");
-        activeObject.addXML3DNode(outputObject.toXML3DNode());
+
+        XML3DNode node = new XML3DNode(nodename);
+        node.addXML3DAttribute(new XML3DAttribute("id", geometryType.toString()));
+        node.addXML3DAttribute(new XML3DAttribute("class", "NodeClassName"));
+        node.addXML3DNode(outputObject.toXML3DNode());
+        
+        // Add new XML3DNode to global root node
+        xml3dRootNode.addXML3DNode(node);
+
     }
 }
 
 private void writeXML3D() {
-    finalizeGeometry();
+    finalizeGeometry("group");
     try {
         writer.write(xml3dRootNode.toString());
     } catch (IOException e) {
@@ -281,8 +278,29 @@ private void writeXML3D() {
     }
 }
 
+private void writeXML() {
+    String xmlHeader = "<?xml version=\"1.0\" encoding=\"utf-8\" ?>"
+            + "<xml3d xmlns=\"http://www.xml3d.org/2009/xml3d\">"
+            + "<asset id=\"asset\">";
+    
+    String xmlFooter = "</asset></xml3d>";
+    
+    if (outputObject != null) {
+        // Create new XML3DNode and add it to the XML3D root node
+        xml3dRootNode.addXML3DNode(outputObject.toXML3DNode());
+    }
+    
+    try {
+        writer.write(xmlHeader);
+        writer.write(xml3dRootNode.toString());
+        writer.write(xmlFooter);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+
 private void writeHTML() {
-    finalizeGeometry();
+    finalizeGeometry("group");
     try {
         writer.write(xml3dRootNode.toHtml());
     } catch (IOException e) {
@@ -295,6 +313,8 @@ public void writeOutput() {
         writeXML3D();
     } else if (requestFormat == Format.HTML_XML3D) {
         writeHTML();
+    } else if (requestFormat == Format.XML) {
+        writeXML();
     }
 
     if (LOGGER.isLoggable(Level.INFO))
