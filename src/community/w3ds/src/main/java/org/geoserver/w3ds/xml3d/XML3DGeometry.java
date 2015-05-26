@@ -7,11 +7,13 @@
 package org.geoserver.w3ds.xml3d;
 
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.geotools.util.logging.Logging;
 
 import java.io.ByteArrayOutputStream;
@@ -296,7 +298,9 @@ private XML3DNode createXML3DNode(String rootNodeName) {
     }
 
     // Formatter for double values, since we don't want more than 6 decimals
-    DecimalFormat decimalFormat = new DecimalFormat("0.0#####");
+    DecimalFormatSymbols otherSymbols = new DecimalFormatSymbols();
+    otherSymbols.setDecimalSeparator('.');
+    DecimalFormat decimalFormat = new DecimalFormat("0.0#####", otherSymbols);
     rootNode = new XML3DNode(rootNodeName);
 
     // TODO: Change XML3DNode name and type once XML3D supports drawing of simple lines!
