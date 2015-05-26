@@ -8,6 +8,7 @@
 package org.geoserver.w3ds.types;
 
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 
 public class Vector3 {
 public double x, y, z;
@@ -129,7 +130,9 @@ public int hashCode() {
 @Override
 public String toString() {
     // Formatter for double values, since we don't want more than 6 decimals
-    DecimalFormat decimalFormat = new DecimalFormat("0.0#####");
+    DecimalFormatSymbols otherSymbols = new DecimalFormatSymbols();
+    otherSymbols.setDecimalSeparator('.');
+    DecimalFormat decimalFormat = new DecimalFormat("0.0#####", otherSymbols);
     return decimalFormat.format(x) + " " + decimalFormat.format(y) + " " + decimalFormat.format(z);
 }
 }
