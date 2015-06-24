@@ -109,21 +109,21 @@ public class OctetStreamResponse extends Response {
             octetStreamBuilder.setLOD(LOD);
         }
 
-        if (getSceneRequest.getKpvPrs().containsKey("resX")) {
-            if (getSceneRequest.getKpvPrs().containsKey("resY")) {
-                int resX = Integer.parseInt(getSceneRequest.getKpvPrs().get("resX"));
-                int resY = Integer.parseInt(getSceneRequest.getKpvPrs().get("resY"));
+        if (getSceneRequest.getKpvPrs().containsKey("width")) {
+            if (getSceneRequest.getKpvPrs().containsKey("height")) {
+                int width = Integer.parseInt(getSceneRequest.getKpvPrs().get("width"));
+                int height = Integer.parseInt(getSceneRequest.getKpvPrs().get("height"));
 
-                octetStreamBuilder.setResolution(resX, resY);
-                LOGGER.log(Level.FINE, "Request with resolution parameters: resX = " + resX
-                        + " resY = " + resY);
+                octetStreamBuilder.setResolution(width, height);
+                LOGGER.log(Level.FINE, "Request with resolution parameters: width = " + width
+                        + " height = " + height);
             } else {
                 LOGGER.log(Level.SEVERE, "Request with resolution was missing another parameter! "
-                        + "(miss: resY)");
+                        + "(miss: height)");
             }
-        } else if (getSceneRequest.getKpvPrs().containsKey("resY")) {
+        } else if (getSceneRequest.getKpvPrs().containsKey("height")) {
             LOGGER.log(Level.SEVERE, "Request with resolution was missing another parameter! "
-                    + "(miss: resX)");
+                    + "(miss: width)");
         }
 
         // Add layers
