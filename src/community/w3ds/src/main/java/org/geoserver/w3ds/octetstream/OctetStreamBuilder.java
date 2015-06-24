@@ -21,8 +21,10 @@ import org.geoserver.w3ds.types.W3DSLayer;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
+import org.geotools.geometry.DirectPosition2D;
 //import org.geotools.geometry.Envelope2D;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.GeodeticCalculator;
 import org.geotools.util.logging.Logging;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory2;
@@ -30,6 +32,9 @@ import org.opengis.feature.Feature;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.AttributeDescriptor;
+import org.opengis.geometry.coordinate.Position;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.operation.TransformException;
 
 import com.vividsolutions.jts.geom.Geometry;
 
@@ -45,8 +50,8 @@ public class OctetStreamBuilder {
     private ReferencedEnvelope boundingBox = null;
     private Terrain terrain = null;
     private Integer LOD = null;
-    private Integer resX = null;
-    private Integer resY = null;
+    private Integer width = null;
+    private Integer height = null;
     private GetSceneRequest request = null;
     
 
@@ -112,9 +117,9 @@ public class OctetStreamBuilder {
         LOD = lod;
     }
 
-    public void setResolution(int resX, int resY) {
-        this.resX = resX;
-        this.resY = resY;
+    public void setResolution(int width, int height) {
+        this.width = width;
+        this.height = height;
     }
     
     private void addGeometry(Geometry geometry, String id) throws IOException {
@@ -124,8 +129,8 @@ public class OctetStreamBuilder {
         if (terrain == null) {
             terrain = new Terrain(boundingBox, request.getCrs());
 
-            if (resX != null && resY != null) {
-                terrain.setTargetResolution(resX, resY);
+            if (width != null && height != null) {
+                terrain.setTargetResolution(width, height);
             }
         }
         terrain.addGeometry(geometry);
@@ -142,42 +147,36 @@ public class OctetStreamBuilder {
 
                 collection = layer.getFeatures(filter);
 
-            } else if (resX != null && resY != null) {
+            } else if (width != null && height != null) {
                 // If LOD is available but it's not requested, guess LOD level from point distance
                 // and requested resolution
 
-                double lowerCorner[] = { boundingBox.getMinX(), boundingBox.getMinY() };
-                double upperCorner[] = { boundingBox.getMaxX(), boundingBox.getMaxY() };
                 double distanceX = 0.0;
                 double distanceY = 0.0;
 
-                // Check bounding box CRS and compute distances in meters
-                String crs = boundingBox.getCoordinateReferenceSystem().getName().toString();
+                // Calculate distances in meters
+                CoordinateReferenceSystem crs = boundingBox.getCoordinateReferenceSystem();
 
-                if (crs.equalsIgnoreCase("EPSG:WGS 84")) {
-                    double[] point1 = { lowerCorner[0], lowerCorner[1] };
-                    double[] point2 = { lowerCorner[0], upperCorner[1] };
+                Position startPosition = new DirectPosition2D(crs, boundingBox.getMinX(), boundingBox.getMinY());
+                Position stopXPosition = new DirectPosition2D(crs, boundingBox.getMaxX(), boundingBox.getMinY());
+                Position stopYPosition = new DirectPosition2D(crs, boundingBox.getMinX(), boundingBox.getMaxY());
 
-                    distanceY = getDistanceBetweenPoints(point1, point2) / resY;
+                GeodeticCalculator geodeticCalculator = new GeodeticCalculator(crs);
+                try {
+                    geodeticCalculator.setStartingPosition(startPosition);
+                    geodeticCalculator.setDestinationPosition(stopYPosition);
+                    distanceY = (float) geodeticCalculator.getOrthodromicDistance() / height;
 
-                    point1[0] = lowerCorner[0];
-                    point1[1] = lowerCorner[1];
-
-                    point2[0] = upperCorner[0];
-                    point2[1] = lowerCorner[1];
-
-                    distanceX = getDistanceBetweenPoints(point1, point2) / resX;
-
-                } else {
-                    // This works only with metric coordinate systems
-                    distanceX = (upperCorner[0] - lowerCorner[0]) / resX;
-                    distanceY = (upperCorner[1] - lowerCorner[1]) / resY;
+                    geodeticCalculator.setDestinationPosition(stopXPosition);
+                    distanceX = (float) geodeticCalculator.getOrthodromicDistance() / width;
+                } catch (TransformException e) {
+                    LOGGER.log(Level.SEVERE, "Error while calculating point distances", e.getStackTrace());
                 }
 
                 LOD = layer.getClosestLodByDistance(distanceX, distanceY);
 
                 // LOGGER.log(Level.INFO,
-                // "Request with resolution: "+resX+" "+resY+" Using LOD: "+LOD);
+                // "Request with resolution: "+width+" "+height+" Using LOD: "+LOD);
 
                 FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
                 Filter filter = ff.equals(ff.property("lod"), ff.literal(LOD));
@@ -198,40 +197,6 @@ public class OctetStreamBuilder {
 
         return collection;
     }
-
-    /**
-     * Haversine formula: a = sin²(Δφ/2) + cos φ1 ⋅ cos φ2 ⋅ sin²(Δλ/2) c = 2 ⋅ atan2( √a, √(1−a) )
-     * d = R ⋅ c where φ is latitude, λ is longitude, R is earth’s radius (mean radius = 6371km);
-     *
-     * @param point1
-     *            [lon, lat]
-     * @param point2
-     *            [lon, lat]
-     * @return distance (meters)
-     */
-    private double getDistanceBetweenPoints(double[] point1, double[] point2) {
-
-        int R = 6378137; // earth's mean radius in m
-
-        // Coordinates are in lon - lat order
-        double lat1 = Math.toRadians(point1[1]);
-        double lat2 = Math.toRadians(point2[1]);
-
-        double lon1 = Math.toRadians(point1[0]);
-        double lon2 = Math.toRadians(point2[0]);
-
-        double Δφ = lat2 - lat1;
-        double Δλ = lon2 - lon1;
-
-        double a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(lat1) * Math.cos(lat2)
-                * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return R * c;
-    }
-
-    
 
     private static String getObjectID(W3DSLayer layer, Feature feature) {
         if (!layer.getHasObjectID()) {
