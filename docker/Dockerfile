@@ -35,9 +35,9 @@ RUN \
 # Download and unzip test client
 RUN \
     cd /usr/share/tomcat7/webapps/ && \
-    wget --no-check-certificate https://forge.fiware.org/frs/download.php/1672/GISDataProvider-test_client_4.4.2.zip && \
-    unzip GISDataProvider-test_client_4.4.2.zip && \
-    rm GISDataProvider-test_client_4.4.2.zip
+    wget --no-check-certificate https://forge.fiware.org/frs/download.php/1685/GISDataProvider-test_client_4.4.3.zip && \
+    unzip GISDataProvider-test_client_4.4.3.zip && \
+    rm GISDataProvider-test_client_4.4.3.zip
 
 RUN \
     cd /usr/share/tomcat7/webapps/geoserver/data && \
