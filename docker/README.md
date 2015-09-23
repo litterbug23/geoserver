@@ -18,9 +18,9 @@ docker run -t -p 9090:8080 -i juhahyva/gisdataprovider
 
 This pulls the image from the Docker Registry instead of building your own. Keep in mind though that everything is run locally. 
 
-After image is downloaded server instance will response from: [http://localhost:9090/geoserver/web](http://localhost:9090/geoserver/web)
+After image is downloaded server instance will response from: localhost:9090/geoserver/web
 
-Reference client will be at [http://localhost:9090/GIS/](http://localhost:9090/GIS/)
+Reference client will be at: localhost:9090/GIS/
 
 > **Warning**
 > Everything you do with GIS Data Provider when dockerized is non-persistent. *You will lose all your data* if you turn off the GIS Data Provider container.
