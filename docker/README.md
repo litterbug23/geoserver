@@ -10,10 +10,10 @@ If you want to know what is behind the scenes of our container you can go ahead 
 
 ### Run the container
 
-docker run -t -i juhahyva/gisdataprovider
+docker run -t -i fiware/gisdataprovider
 
 You may define forwarded ports with -p flag
-docker run -t -p 9090:8080 -i juhahyva/gisdataprovider
+docker run -t -p 9090:8080 -i fiware/gisdataprovider
 
 
 This pulls the image from the Docker Registry instead of building your own. Keep in mind though that everything is run locally. 
@@ -50,7 +50,7 @@ The following line will run the container exposing docker port `8080` to host po
 
 If you did not build the image yourself and want to use the one on Docker Hub use the following command:
 
-      sudo docker run -t -p 9090:8080 juhahyva/gisdataprovider
+      sudo docker run -t -p 9090:8080 fiware/gisdataprovider
 
 > **Note**
 > Keep in mind that if you use this last command you get access to the tags and specific versions of GIS Data Provider.
