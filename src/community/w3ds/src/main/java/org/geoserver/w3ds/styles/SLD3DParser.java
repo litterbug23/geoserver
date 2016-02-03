@@ -71,6 +71,7 @@ import org.opengis.filter.expression.Expression;
 import org.opengis.filter.expression.Function;
 import org.opengis.filter.expression.Literal;
 import org.opengis.filter.expression.PropertyName;
+import org.opengis.style.ContrastMethod;
 import org.w3c.dom.CharacterData;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -1466,13 +1467,13 @@ public class SLD3DParser {
 			}
 
 			if (childName.equalsIgnoreCase("Normalize")) {
-				symbol.setNormalize();
+				symbol.setMethod(ContrastMethod.NORMALIZE);
 			} else if (childName.equalsIgnoreCase("Histogram")) {
-				symbol.setHistogram();
+				symbol.setMethod(ContrastMethod.HISTOGRAM);
 			} else if (childName.equalsIgnoreCase("Logarithmic")) {
-				symbol.setLogarithmic();
+				symbol.setMethod(ContrastMethod.LOGARITHMIC);;
 			} else if (childName.equalsIgnoreCase("Exponential")) {
-				symbol.setExponential();
+				symbol.setMethod(ContrastMethod.EXPONENTIAL);
 			} else if (childName.equalsIgnoreCase("GammaValue")) {
 				try {
 					final String gammaString = getFirstChildValue(child);
