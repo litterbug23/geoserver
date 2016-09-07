@@ -4,6 +4,7 @@
  */
 package org.geogig.geoserver.rest;
 
+import static org.junit.Assert.*;
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathExists;
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathNotExists;
@@ -15,7 +16,8 @@ import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Iterator;
+import java.net.URI;
+import java.util.List;
 import java.util.Random;
 
 import org.geogig.geoserver.GeoGigTestData;
@@ -30,18 +32,22 @@ import org.geoserver.test.GeoServerSystemTestSupport;
 import org.geoserver.test.TestSetup;
 import org.geoserver.test.TestSetupFrequency;
 import org.geotools.data.DataAccess;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.locationtech.geogig.api.GeoGIG;
-import org.locationtech.geogig.api.ObjectId;
-import org.locationtech.geogig.api.Ref;
-import org.locationtech.geogig.api.RevObject;
-import org.locationtech.geogig.api.plumbing.RefParse;
-import org.locationtech.geogig.api.plumbing.ResolveTreeish;
-import org.locationtech.geogig.api.plumbing.RevObjectParse;
 import org.locationtech.geogig.geotools.data.GeoGigDataStore;
 import org.locationtech.geogig.geotools.data.GeoGigDataStoreFactory;
+import org.locationtech.geogig.model.ObjectId;
+import org.locationtech.geogig.model.Ref;
+import org.locationtech.geogig.model.RevObject;
+import org.locationtech.geogig.plumbing.RefParse;
+import org.locationtech.geogig.plumbing.ResolveTreeish;
+import org.locationtech.geogig.plumbing.RevObjectParse;
+import org.locationtech.geogig.repository.GeoGIG;
+import org.locationtech.geogig.repository.Repository;
+import org.locationtech.geogig.repository.RepositoryResolver;
+import org.locationtech.geogig.storage.ConfigDatabase;
 import org.locationtech.geogig.storage.ObjectSerializingFactory;
 import org.locationtech.geogig.storage.datastream.DataStreamSerializationFactoryV1;
 import org.opengis.feature.Feature;
@@ -51,15 +57,18 @@ import org.w3c.dom.Document;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.mockrunner.mock.web.MockHttpServletResponse;
 
-@TestSetup(run = TestSetupFrequency.ONCE)
+@TestSetup(run = TestSetupFrequency.REPEAT)
 public class GeoGigWebAPIIntegrationTest extends GeoServerSystemTestSupport {
 
+    /**
+     * {@code /geogig/repos/<repoId>}
+     */
     private String BASE_URL;
 
     private static final Random rnd = new Random();
@@ -78,7 +87,7 @@ public class GeoGigWebAPIIntegrationTest extends GeoServerSystemTestSupport {
     @Before
     public void before() throws Exception {
         // protected void onSetUp(SystemTestData testData) throws Exception {
-
+        Catalog catalog = getCatalog();
         geogigData.init()//
                 .config("user.name", "gabriel")//
                 .config("user.email", "gabriel@test.com")//
@@ -88,18 +97,17 @@ public class GeoGigWebAPIIntegrationTest extends GeoServerSystemTestSupport {
                 .commit("created type trees")//
                 .get();
 
-        geogigData.insert("points",//
-                "p1=geom:POINT(0 0)",//
-                "p2=geom:POINT(1 1)",//
+        geogigData.insert("points", //
+                "p1=geom:POINT(0 0)", //
+                "p2=geom:POINT(1 1)", //
                 "p3=geom:POINT(2 2)");
 
-        geogigData.insert("lines",//
-                "l1=geom:LINESTRING(-10 0, 10 0)",//
+        geogigData.insert("lines", //
+                "l1=geom:LINESTRING(-10 0, 10 0)", //
                 "l2=geom:LINESTRING(0 0, 180 0)");
 
         geogigData.add().commit("Added test features");
 
-        Catalog catalog = getCatalog();
         CatalogBuilder catalogBuilder = geogigData.newCatalogBuilder(catalog);
         int i = rnd.nextInt();
         catalogBuilder.namespace("geogig.org/" + i).workspace("geogigws" + i)
@@ -124,11 +132,20 @@ public class GeoGigWebAPIIntegrationTest extends GeoServerSystemTestSupport {
         assertNotNull(dataStore);
         assertTrue(dataStore instanceof GeoGigDataStore);
 
-        String repoId = (String) dsInfo.getConnectionParameters().get(
-                GeoGigDataStoreFactory.REPOSITORY.key);
-        RepositoryInfo repositoryInfo = RepositoryManager.get().get(repoId);
+        String repoStr = (String) dsInfo.getConnectionParameters()
+                .get(GeoGigDataStoreFactory.REPOSITORY.key);
+        // resolve the repo
+        URI repoURI = new URI(repoStr);
+        RepositoryResolver resolver = RepositoryResolver.lookup(repoURI);
+        String repoName = resolver.getName(repoURI);
+        RepositoryInfo repositoryInfo = RepositoryManager.get().getByRepoName(repoName);
         assertNotNull(repositoryInfo);
-        BASE_URL = "/geogig/" + repositoryInfo.getId();
+        BASE_URL = "/geogig/repos/testrepo";
+    }
+
+    @After
+    public void after() {
+        RepositoryManager.close();
     }
 
     /**
@@ -247,8 +264,10 @@ public class GeoGigWebAPIIntegrationTest extends GeoServerSystemTestSupport {
 
         ObjectSerializingFactory factory = DataStreamSerializationFactoryV1.INSTANCE;
 
-        Iterator<RevObject> objects = new ObjectStreamIterator(responseStream, factory);
-        RevObject actual = Iterators.getLast(objects);
+        List<RevObject> objects = Lists
+                .newArrayList(new ObjectStreamIterator(responseStream, factory));
+        assertFalse(objects.isEmpty());
+        RevObject actual = objects.get(objects.size() - 1);
         assertEquals(expected, actual);
     }
 
@@ -309,7 +328,7 @@ public class GeoGigWebAPIIntegrationTest extends GeoServerSystemTestSupport {
         assertXpathEvaluatesTo("upstream", "/response/name", dom);
 
         dom = getAsDOM(url);
-
+        print(dom);
         // <response><success>false</success><error>REMOTE_ALREADY_EXISTS</error></response>
         assertXpathEvaluatesTo("false", "/response/success", dom);
         assertXpathEvaluatesTo("REMOTE_ALREADY_EXISTS", "/response/error", dom);

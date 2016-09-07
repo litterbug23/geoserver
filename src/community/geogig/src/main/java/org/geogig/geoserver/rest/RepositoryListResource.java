@@ -19,6 +19,8 @@ import org.geogig.geoserver.config.RepositoryInfo;
 import org.geoserver.rest.PageInfo;
 import org.geoserver.rest.format.FreemarkerFormat;
 import org.locationtech.geogig.rest.JettisonRepresentation;
+import org.locationtech.geogig.rest.Variants;
+import org.locationtech.geogig.rest.repository.RepositoryProvider;
 import org.restlet.Context;
 import org.restlet.data.MediaType;
 import org.restlet.data.Preference;
@@ -29,6 +31,7 @@ import org.restlet.resource.Resource;
 import org.restlet.resource.Variant;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -47,13 +50,18 @@ public class RepositoryListResource extends Resource {
 
     @Override
     public Variant getPreferredVariant() {
-        List<MediaType> acceptedMediaTypes = Lists.transform(getRequest().getClientInfo()
-                .getAcceptedMediaTypes(), new Function<Preference<MediaType>, MediaType>() {
-            @Override
-            public MediaType apply(Preference<MediaType> input) {
-                return input.getMetadata();
-            }
-        });
+        Optional<Variant> byExtension = Variants.getVariantByExtension(getRequest(), getVariants());
+        if (byExtension.isPresent()) {
+            return byExtension.get();
+        }
+        List<MediaType> acceptedMediaTypes = Lists.transform(
+                getRequest().getClientInfo().getAcceptedMediaTypes(),
+                new Function<Preference<MediaType>, MediaType>() {
+                    @Override
+                    public MediaType apply(Preference<MediaType> input) {
+                        return input.getMetadata();
+                    }
+                });
         if (acceptedMediaTypes.contains(MediaType.TEXT_HTML)) {
             return HTML;
         }
@@ -99,16 +107,17 @@ public class RepositoryListResource extends Resource {
 
     private List<RepositoryInfo> getRepositories() {
         Request request = getRequest();
-        GeoServerRepositoryProvider repoFinder = (GeoServerRepositoryProvider) repositoryProvider(request);
+        GeoServerRepositoryProvider repoFinder = (GeoServerRepositoryProvider) repositoryProvider(
+                request);
 
-        List<RepositoryInfo> repos = new ArrayList<>(repoFinder.findRepositories());
+        List<RepositoryInfo> repos = new ArrayList<>(repoFinder.getRepositoryInfos());
 
         return repos;
     }
 
     private static class RepositoryListRepresentation extends JettisonRepresentation {
 
-        private List<RepositoryInfo> repos;
+        private final List<RepositoryInfo> repos;
 
         public RepositoryListRepresentation(MediaType mediaType, String baseURL,
                 List<RepositoryInfo> repos) {
@@ -118,7 +127,7 @@ public class RepositoryListResource extends Resource {
 
         @Override
         protected void write(XMLStreamWriter w) throws XMLStreamException {
-            w.writeStartElement("repositories");
+            w.writeStartElement("repos");
             for (RepositoryInfo repo : repos) {
                 write(w, repo);
             }
@@ -126,10 +135,12 @@ public class RepositoryListResource extends Resource {
         }
 
         private void write(XMLStreamWriter w, RepositoryInfo repo) throws XMLStreamException {
-            w.writeStartElement("repository");
+            w.writeStartElement("repo");
             element(w, "id", repo.getId());
-            element(w, "name", repo.getName());
-            encodeAlternateAtomLink(w, repo.getId());
+
+            element(w, "name", repo.getRepoName());
+            encodeAlternateAtomLink(w, RepositoryProvider.BASE_REPOSITORY_ROUTE + "/" +
+                    repo.getRepoName());
             w.writeEndElement();
         }
 

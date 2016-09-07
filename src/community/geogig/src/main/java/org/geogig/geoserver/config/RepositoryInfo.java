@@ -8,7 +8,11 @@ import static com.google.common.base.Objects.equal;
 
 import java.io.File;
 import java.io.Serializable;
+import java.net.URI;
 
+import org.locationtech.geogig.repository.RepositoryResolver;
+
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 
 public class RepositoryInfo implements Serializable {
@@ -17,9 +21,27 @@ public class RepositoryInfo implements Serializable {
 
     private String id;
 
+    /**
+     * @deprecated field to support deserialization of old format when it only allowed file:
+     *             repositories
+     */
     private String parentDirectory;
 
+    /**
+     * @deprecated field to support deserialization of old format when it only allowed file:
+     *             repositories
+     */
     private String name;
+
+    private java.net.URI location;
+
+    /**
+     * Stores the "nice" name for a repo. This is the name that is shown in the Repository list, as
+     * well as what is stored in the GeoGIG repository config. It is transient, as we don't want to
+     * serialize this. It's just a place holder for the name until it can be persisted into the repo
+     * config.
+     */
+    private transient String repoName;
 
     public RepositoryInfo() {
         this(null);
@@ -27,6 +49,16 @@ public class RepositoryInfo implements Serializable {
 
     RepositoryInfo(String id) {
         this.id = id;
+    }
+
+    private Object readResolve() {
+        if (parentDirectory != null && name != null) {
+            File file = new File(new File(parentDirectory), name).getAbsoluteFile();
+            this.location = file.toURI();
+            this.parentDirectory = null;
+            this.name = null;
+        }
+        return this;
     }
 
     public String getId() {
@@ -37,33 +69,38 @@ public class RepositoryInfo implements Serializable {
         this.id = id;
     }
 
-    public String getLocation() {
-        if (parentDirectory == null || name == null) {
-            return null;
-        }
-        return new File(parentDirectory, name).getAbsolutePath();
+    public URI getLocation() {
+        readResolve();
+        return this.location;
     }
 
-    public void setLocation(String location) {
-        File repoDir = new File(location);
-        setName(repoDir.getName());
-        setParentDirectory(repoDir.getParent());
+    public void setLocation(URI location) {
+        this.location = location;
     }
 
-    public void setParentDirectory(String parent) {
+    @VisibleForTesting
+    void setParentDirectory(String parent) {
         this.parentDirectory = parent;
     }
 
-    public String getParentDirectory() {
-        return parentDirectory;
-    }
-
-    public void setName(String name) {
+    @VisibleForTesting
+    void setName(String name) {
         this.name = name;
     }
 
-    public String getName() {
-        return name;
+    public void setRepoName(String name) {
+        this.repoName = name;
+    }
+
+    public String getRepoName() {
+        if (this.location != null) {
+            if (this.repoName == null) {
+                // lookup the resolver
+                RepositoryResolver resolver = RepositoryResolver.lookup(this.location);
+                this.repoName = resolver.getName(this.location);
+            }
+        }
+        return this.repoName;
     }
 
     @Override
@@ -72,18 +109,17 @@ public class RepositoryInfo implements Serializable {
             return false;
         }
         RepositoryInfo r = (RepositoryInfo) o;
-        return equal(getId(), r.getId()) && equal(getName(), r.getName())
-                && equal(getParentDirectory(), r.getParentDirectory());
+        return equal(getId(), r.getId()) && equal(getLocation(), r.getLocation());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(getId(), getName(), getParentDirectory());
+        return Objects.hashCode(getId(), getLocation());
     }
 
     @Override
     public String toString() {
-        return new StringBuilder("[name:").append(getName()).append(", parent:")
-                .append(getParentDirectory()).append("]").toString();
+        return new StringBuilder("[id:").append(getId()).append(", URI:").append(getLocation())
+                .append("]").toString();
     }
 }

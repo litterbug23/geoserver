@@ -16,20 +16,20 @@ import java.util.Map.Entry;
 import javax.annotation.Nullable;
 
 import org.geogig.geoserver.config.LogStore;
-import org.locationtech.geogig.api.AbstractGeoGigOp;
-import org.locationtech.geogig.api.Context;
-import org.locationtech.geogig.api.ObjectId;
-import org.locationtech.geogig.api.Ref;
-import org.locationtech.geogig.api.porcelain.CloneOp;
-import org.locationtech.geogig.api.porcelain.FetchOp;
-import org.locationtech.geogig.api.porcelain.PullOp;
-import org.locationtech.geogig.api.porcelain.PullResult;
-import org.locationtech.geogig.api.porcelain.PushOp;
-import org.locationtech.geogig.api.porcelain.RemoteAddOp;
-import org.locationtech.geogig.api.porcelain.RemoteRemoveOp;
-import org.locationtech.geogig.api.porcelain.TransferSummary;
-import org.locationtech.geogig.api.porcelain.TransferSummary.ChangedRef;
-import org.locationtech.geogig.api.porcelain.TransferSummary.ChangedRef.ChangeTypes;
+import org.locationtech.geogig.model.ObjectId;
+import org.locationtech.geogig.model.Ref;
+import org.locationtech.geogig.porcelain.CloneOp;
+import org.locationtech.geogig.porcelain.FetchOp;
+import org.locationtech.geogig.porcelain.PullOp;
+import org.locationtech.geogig.porcelain.PullResult;
+import org.locationtech.geogig.porcelain.PushOp;
+import org.locationtech.geogig.porcelain.RemoteAddOp;
+import org.locationtech.geogig.porcelain.RemoteRemoveOp;
+import org.locationtech.geogig.porcelain.TransferSummary;
+import org.locationtech.geogig.porcelain.TransferSummary.ChangedRef;
+import org.locationtech.geogig.porcelain.TransferSummary.ChangedRef.ChangeTypes;
+import org.locationtech.geogig.repository.AbstractGeoGigOp;
+import org.locationtech.geogig.repository.Context;
 import org.locationtech.geogig.repository.Repository;
 import org.springframework.beans.factory.InitializingBean;
 
@@ -132,15 +132,17 @@ public class SecurityLogger implements InitializingBean {
         if (location == null) {
             return null;
         }
-        String uri;
-        try {
-            File f = new File(location);
-            if (f.getName().endsWith(".geogig")) {
-                f = f.getParentFile();
+        String uri = location.toString();
+        if ("file".equals(location.getScheme())) {
+            try {
+                File f = new File(location);
+                if (f.getName().equals(".geogig")) {
+                    f = f.getParentFile();
+                    uri = f.toURI().toString();
+                }
+            } catch (Exception e) {
+                uri = location.toString();
             }
-            uri = f.getAbsolutePath();
-        } catch (Exception e) {
-            uri = location.toString();
         }
         return uri;
     }
@@ -253,8 +255,8 @@ public class SecurityLogger implements InitializingBean {
 
         @Override
         String params(CloneOp c) {
-            return format("url=%s, branch=%s, depth=%s", c.getRepositoryURL().orNull(), c
-                    .getBranch().orNull(), c.getDepth().orNull());
+            return format("url=%s, branch=%s, depth=%s", c.getRepositoryURL().orNull(),
+                    c.getBranch().orNull(), c.getDepth().orNull());
         }
     }
 

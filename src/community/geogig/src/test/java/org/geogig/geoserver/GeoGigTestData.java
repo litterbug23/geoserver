@@ -24,6 +24,9 @@ import java.util.TreeSet;
 
 import javax.annotation.Nullable;
 
+import org.geogig.geoserver.config.GeoServerGeoGigRepositoryResolver;
+import org.geogig.geoserver.config.RepositoryInfo;
+import org.geogig.geoserver.config.RepositoryManager;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.DataStoreInfo;
 import org.geoserver.catalog.FeatureTypeInfo;
@@ -42,31 +45,31 @@ import org.geotools.util.Converters;
 import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
-import org.locationtech.geogig.api.AbstractGeoGigOp;
-import org.locationtech.geogig.api.Context;
-import org.locationtech.geogig.api.FeatureBuilder;
-import org.locationtech.geogig.api.GeoGIG;
-import org.locationtech.geogig.api.GlobalContextBuilder;
-import org.locationtech.geogig.api.NodeRef;
-import org.locationtech.geogig.api.ObjectId;
-import org.locationtech.geogig.api.RevFeature;
-import org.locationtech.geogig.api.RevFeatureType;
-import org.locationtech.geogig.api.RevTree;
-import org.locationtech.geogig.api.TestPlatform;
-import org.locationtech.geogig.api.plumbing.FindTreeChild;
-import org.locationtech.geogig.api.plumbing.ResolveGeogigDir;
-import org.locationtech.geogig.api.plumbing.RevObjectParse;
-import org.locationtech.geogig.api.porcelain.AddOp;
-import org.locationtech.geogig.api.porcelain.BranchCreateOp;
-import org.locationtech.geogig.api.porcelain.CheckoutOp;
-import org.locationtech.geogig.api.porcelain.CommitOp;
-import org.locationtech.geogig.api.porcelain.ConfigOp;
-import org.locationtech.geogig.api.porcelain.ConfigOp.ConfigAction;
-import org.locationtech.geogig.api.porcelain.InitOp;
-import org.locationtech.geogig.cli.test.functional.general.CLITestContextBuilder;
+import org.locationtech.geogig.cli.test.functional.CLITestContextBuilder;
+import org.locationtech.geogig.data.FeatureBuilder;
 import org.locationtech.geogig.geotools.data.GeoGigDataStore;
 import org.locationtech.geogig.geotools.data.GeoGigDataStoreFactory;
+import org.locationtech.geogig.model.NodeRef;
+import org.locationtech.geogig.model.ObjectId;
+import org.locationtech.geogig.model.RevFeature;
+import org.locationtech.geogig.model.RevFeatureType;
+import org.locationtech.geogig.model.RevTree;
+import org.locationtech.geogig.plumbing.FindTreeChild;
+import org.locationtech.geogig.plumbing.ResolveGeogigDir;
+import org.locationtech.geogig.plumbing.RevObjectParse;
+import org.locationtech.geogig.porcelain.AddOp;
+import org.locationtech.geogig.porcelain.BranchCreateOp;
+import org.locationtech.geogig.porcelain.CheckoutOp;
+import org.locationtech.geogig.porcelain.CommitOp;
+import org.locationtech.geogig.porcelain.ConfigOp;
+import org.locationtech.geogig.porcelain.ConfigOp.ConfigAction;
+import org.locationtech.geogig.porcelain.InitOp;
+import org.locationtech.geogig.repository.AbstractGeoGigOp;
+import org.locationtech.geogig.repository.Context;
+import org.locationtech.geogig.repository.GeoGIG;
+import org.locationtech.geogig.repository.GlobalContextBuilder;
 import org.locationtech.geogig.repository.WorkingTree;
+import org.locationtech.geogig.test.TestPlatform;
 import org.opengis.feature.Feature;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
@@ -94,35 +97,46 @@ public class GeoGigTestData extends ExternalResource {
 
     @Override
     protected void before() throws Throwable {
+        setUp("testrepo");
+    }
+
+    public void setUp(String repoName) throws Exception {
         tmpFolder = new TemporaryFolder();
         tmpFolder.create();
-        this.geogig = createGeogig();
+        this.geogig = createRepository(repoName);
     }
 
     @Override
     protected void after() {
+        tearDown();
+    }
+
+    public void tearDown() {
         try {
             if (geogig != null) {
                 geogig.close();
                 geogig = null;
             }
         } finally {
+            RepositoryManager.close();
             tmpFolder.delete();
         }
     }
 
     protected GeoGIG createGeogig() throws IOException {
-        return createRpository("testrepo");
+        return createRepository("testrepo");
     }
 
-    public GeoGIG createRpository(String name) {
+    public GeoGIG createRepository(String name) {
         File dataDirectory = tmpFolder.getRoot();
         repoDir = new File(dataDirectory, name);
         Assert.assertTrue(repoDir.mkdir());
 
-        TestPlatform testPlatform = new TestPlatform(dataDirectory);
-        GlobalContextBuilder.builder = new CLITestContextBuilder(testPlatform);
-        GeoGIG Geogig = new GeoGIG(repoDir);
+        TestPlatform testPlatform = new TestPlatform(repoDir);
+        testPlatform.setUserHome(dataDirectory);
+        GlobalContextBuilder.builder(new CLITestContextBuilder(testPlatform));
+        Context context = GlobalContextBuilder.builder().build();
+        GeoGIG Geogig = new GeoGIG(context);
 
         return Geogig;
     }
@@ -208,9 +222,9 @@ public class GeoGigTestData extends ExternalResource {
     /**
      * Inserts features in the working tree under the given parent tree path.
      * <p>
-     * The parent tree must exist. The {@code featureSpecs} are of the form
-     * {@code  featureSpec := <id>=<attname>:<value>[;<attname>:<value>]+} . The parsing routine is
-     * as naive as it can be so do not use any '=', ':', or ';' in the values.
+     * The parent tree must exist. The {@code featureSpecs} are of the form {@code  featureSpec := 
+     * <id>=<attname>:<value>[;<attname>:<value>]+} . The parsing routine is as naive as it can be
+     * so do not use any '=', ':', or ';' in the values.
      * <p>
      * An empty value string is assumed to mean {@code null}. Any {@code <attname>} not provided
      * (wrt. its type) will be left as {@code null} in the built feature.
@@ -304,15 +318,15 @@ public class GeoGigTestData extends ExternalResource {
             String treeName = treeNames.get(i);
             if (treeName.equals(parentTreePath)) {
                 ObjectId metadataId = featureTypeTrees.get(i).getMetadataId();
-                RevFeatureType revType = ((Optional<RevFeatureType>) run(geogig.command(
-                        RevObjectParse.class).setObjectId(metadataId))).get();
+                RevFeatureType revType = ((Optional<RevFeatureType>) run(
+                        geogig.command(RevObjectParse.class).setObjectId(metadataId))).get();
                 SimpleFeatureType featureType = (SimpleFeatureType) revType.type();
                 return featureType;
             }
         }
 
-        throw new IllegalArgumentException(String.format("No tree path named '%s' exists: %s",
-                parentTreePath, treeNames));
+        throw new IllegalArgumentException(
+                String.format("No tree path named '%s' exists: %s", parentTreePath, treeNames));
     }
 
     public GeoGigTestData update(String featurePath, String attributeName, @Nullable Object value) {
@@ -348,8 +362,8 @@ public class GeoGigTestData extends ExternalResource {
         SimpleFeatureType type = getType(featureRef.getParentPath());
 
         @SuppressWarnings("unchecked")
-        Optional<RevFeature> revFeature = (Optional<RevFeature>) run(context.command(
-                RevObjectParse.class).setObjectId(featureRef.objectId()));
+        Optional<RevFeature> revFeature = (Optional<RevFeature>) run(
+                context.command(RevObjectParse.class).setObjectId(featureRef.getObjectId()));
 
         String id = featureRef.name();
         Feature feature = new FeatureBuilder(type).build(id, revFeature.get());
@@ -503,8 +517,12 @@ public class GeoGigTestData extends ExternalResource {
                 throw Throwables.propagate(e);
             }
             assertTrue(repositoryUrl.exists() && repositoryUrl.isDirectory());
-
-            connParams.put(GeoGigDataStoreFactory.REPOSITORY.key, repositoryUrl.getAbsolutePath());
+            // make sure the Repository is in the Repo Manager
+            RepositoryInfo info = new RepositoryInfo();
+            info.setLocation(geogig.getRepository().getLocation());
+            RepositoryManager.get().save(info);
+            connParams.put(GeoGigDataStoreFactory.REPOSITORY.key,
+                    GeoServerGeoGigRepositoryResolver.getURI(info.getRepoName()));
             connParams.put(GeoGigDataStoreFactory.DEFAULT_NAMESPACE.key, ns.getURI());
             catalog.add(ds);
 

@@ -9,6 +9,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,6 +24,7 @@ import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.test.GeoServerSystemTestSupport;
 import org.geoserver.test.TestSetup;
 import org.geoserver.test.TestSetupFrequency;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -31,6 +33,9 @@ import org.w3c.dom.Document;
 @TestSetup(run = TestSetupFrequency.REPEAT)
 public class SecurityLoggerTestIntegrationTest extends GeoServerSystemTestSupport {
 
+    /**
+     * {@code /geogig/repos/<repoId>}
+     */
     private String BASE_URL;
 
     @Rule
@@ -38,7 +43,7 @@ public class SecurityLoggerTestIntegrationTest extends GeoServerSystemTestSuppor
 
     private LogStore logStore;
 
-    private String repoURL;
+    private URI repoURL;
 
     /**
      * Override to avoid creating default geoserver test data
@@ -64,17 +69,22 @@ public class SecurityLoggerTestIntegrationTest extends GeoServerSystemTestSuppor
         RepositoryManager repositoryManager = RepositoryManager.get();
 
         RepositoryInfo info = new RepositoryInfo();
-        repoURL = geogigData.repoDirectory().getAbsolutePath();
+        repoURL = geogigData.repoDirectory().getAbsoluteFile().toURI();
         info.setLocation(repoURL);
         info = repositoryManager.save(info);
 
-        BASE_URL = "/geogig/" + info.getId();
+        BASE_URL = "/geogig/repos/testrepo";
 
         logStore = GeoServerExtensions.bean(LogStore.class);
         assertNotNull(logStore);
 
         SecurityLogger logger = GeoServerExtensions.bean(SecurityLogger.class);
         assertNotNull(logger);
+    }
+    
+    @After
+    public void after() {
+		RepositoryManager.close();
     }
 
     private void login() throws Exception {
@@ -86,7 +96,6 @@ public class SecurityLoggerTestIntegrationTest extends GeoServerSystemTestSuppor
         String remoteURL = "http://example.com/geogig/upstream";
         final String url = BASE_URL + "/remote?remoteName=upstream&remoteURL=" + remoteURL;
         Document dom = getAsDOM(url);
-        System.out.println(dom.toString());
         // <response><success>true</success><name>upstream</name></response>
         assertXpathEvaluatesTo("true", "/response/success", dom);
 
@@ -96,14 +105,14 @@ public class SecurityLoggerTestIntegrationTest extends GeoServerSystemTestSuppor
 
         assertEquals(Severity.DEBUG, first.getSeverity());
         assertEquals("anonymous", first.getUser());
-        assertEquals(repoURL, first.getRepositoryURL());
+        assertEquals(repoURL.toString(), first.getRepositoryURL());
         assertTrue(first.getMessage(), first.getMessage().contains("Remote add:"));
         assertTrue(first.getMessage(), first.getMessage().contains("name='upstream'"));
 
         LogEvent second = entries.get(0);
         assertEquals(Severity.INFO, second.getSeverity());
         assertEquals("anonymous", second.getUser());
-        assertEquals(repoURL, second.getRepositoryURL());
+        assertEquals(repoURL.toString(), second.getRepositoryURL());
         assertTrue(first.getMessage(), second.getMessage().contains("Remote add success"));
         assertTrue(first.getMessage(), second.getMessage().contains("name='upstream'"));
     }
@@ -124,7 +133,7 @@ public class SecurityLoggerTestIntegrationTest extends GeoServerSystemTestSuppor
 
         assertEquals(Severity.ERROR, last.getSeverity());
         assertEquals("anonymous", last.getUser());
-        assertEquals(repoURL, last.getRepositoryURL());
+        assertEquals(repoURL.toString(), last.getRepositoryURL());
         assertTrue(last.getMessage(), last.getMessage().contains("Remote add failed"));
         assertTrue(last.getMessage(), last.getMessage().contains("name='upstream'"));
         assertTrue(last.getMessage(), last.getMessage().contains("REMOTE_ALREADY_EXISTS"));

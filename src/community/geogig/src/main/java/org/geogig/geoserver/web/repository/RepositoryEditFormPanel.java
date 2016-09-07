@@ -4,7 +4,6 @@
  */
 package org.geogig.geoserver.web.repository;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,18 +25,19 @@ import org.apache.wicket.model.Model;
 import org.apache.wicket.model.ResourceModel;
 import org.geogig.geoserver.config.RepositoryInfo;
 import org.geogig.geoserver.config.RepositoryManager;
-import org.locationtech.geogig.api.Context;
-import org.locationtech.geogig.api.GeoGIG;
-import org.locationtech.geogig.api.GeogigTransaction;
-import org.locationtech.geogig.api.Remote;
-import org.locationtech.geogig.api.plumbing.TransactionBegin;
-import org.locationtech.geogig.api.porcelain.RemoteAddOp;
-import org.locationtech.geogig.api.porcelain.RemoteListOp;
-import org.locationtech.geogig.api.porcelain.RemoteRemoveOp;
+import org.locationtech.geogig.plumbing.TransactionBegin;
+import org.locationtech.geogig.porcelain.RemoteAddOp;
+import org.locationtech.geogig.porcelain.RemoteListOp;
+import org.locationtech.geogig.porcelain.RemoteRemoveOp;
+import org.locationtech.geogig.repository.Context;
+import org.locationtech.geogig.repository.GeogigTransaction;
+import org.locationtech.geogig.repository.Remote;
+import org.locationtech.geogig.repository.Repository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -47,6 +47,8 @@ import com.google.common.collect.Sets;
 public abstract class RepositoryEditFormPanel extends Panel {
 
     private static final long serialVersionUID = -9001389048321749075L;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryEditFormPanel.class);
 
     private RemotesListPanel remotes;
 
@@ -62,14 +64,14 @@ public abstract class RepositoryEditFormPanel extends Panel {
         super(id);
         final boolean isNew = repoInfo == null;
         if (isNew) {
-            repoInfo = new Model<RepositoryInfo>(new RepositoryInfo());
+            repoInfo = new Model<>(new RepositoryInfo());
         }
         setDefaultModel(repoInfo);
 
         popupWindow = new ModalWindow("popupWindow");
         add(popupWindow);
 
-        form = new Form<RepositoryInfo>("repoForm", repoInfo);
+        form = new Form<>("repoForm", repoInfo);
         form.add(new RepositoryEditPanel("repo", repoInfo, isNew));
         form.add(addRemoteLink());
 
@@ -117,18 +119,18 @@ public abstract class RepositoryEditFormPanel extends Panel {
             return new ArrayList<>();
         }
 
-        GeoGIG geogig;
+        ArrayList<RemoteInfo> list = new ArrayList<>();
+        Repository geogig;
         try {
             geogig = RepositoryManager.get().getRepository(repoId);
-        } catch (IOException e) {
-            throw Throwables.propagate(e);
+            if (geogig != null) {
+                ImmutableList<Remote> geogigRemotes = geogig.command(RemoteListOp.class).call();
+                list = RemoteInfo.fromList(geogigRemotes);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load Remotes for repository", e);
         }
 
-        ArrayList<RemoteInfo> list = new ArrayList<>();
-        if (geogig != null) {
-            ImmutableList<Remote> remotes = geogig.command(RemoteListOp.class).call();
-            list = RemoteInfo.fromList(remotes);
-        }
         return list;
     }
 
@@ -140,7 +142,7 @@ public abstract class RepositoryEditFormPanel extends Panel {
             @Override
             public void onClick(AjaxRequestTarget target) {
                 RemoteInfo ri = new RemoteInfo();
-                IModel<RemoteInfo> model = new Model<RemoteInfo>(ri);
+                IModel<RemoteInfo> model = new Model<>(ri);
                 RemotesListPanel table = RepositoryEditFormPanel.this.remotes;
                 RemoteEditPanel editPanel = new RemoteEditPanel(popupWindow.getContentId(), model,
                         popupWindow, table);
@@ -154,13 +156,14 @@ public abstract class RepositoryEditFormPanel extends Panel {
 
     private void onSave(RepositoryInfo repoInfo, AjaxRequestTarget target) {
         RepositoryManager manager = RepositoryManager.get();
-        repoInfo = manager.save(repoInfo);
         // update remotes
-        GeoGIG geogig;
+        Repository geogig;
         try {
+            repoInfo = manager.save(repoInfo);
             geogig = manager.getRepository(repoInfo.getId());
-        } catch (IOException e) {
-            form.error("Unable to connect to repository " + repoInfo.getLocation());
+        } catch (Exception e) {
+            form.error("Unable to connect to repository " + repoInfo.getLocation() + "\n"
+                    + e.getMessage());
             target.addComponent(form);
             return;
         }
@@ -172,8 +175,8 @@ public abstract class RepositoryEditFormPanel extends Panel {
             }
         };
 
-        Map<Integer, RemoteInfo> currentRemotes = new HashMap<>(Maps.uniqueIndex(
-                loadRemoteInfos(repoInfo), keyFunction));
+        Map<Integer, RemoteInfo> currentRemotes = new HashMap<>(
+                Maps.uniqueIndex(loadRemoteInfos(repoInfo), keyFunction));
 
         Set<RemoteInfo> newRemotes = Sets.newHashSet(remotes.getRemotes());
         if (!currentRemotes.isEmpty() || !newRemotes.isEmpty()) {
@@ -200,7 +203,7 @@ public abstract class RepositoryEditFormPanel extends Panel {
         // handle deletes first, in case a remote was deleted in the table and then a new one added
         // with the same name
         {
-            Map<Integer, RemoteInfo> remaining = new HashMap<Integer, RemoteInfo>();
+            Map<Integer, RemoteInfo> remaining = new HashMap<>();
             for (RemoteInfo ri : newRemotes) {
                 if (ri.getId() != null) {
                     remaining.put(ri.getId(), ri);
@@ -229,8 +232,8 @@ public abstract class RepositoryEditFormPanel extends Panel {
                 try {
                     cmd.call();
                 } catch (RuntimeException e) {
-                    throw new RuntimeException("Error adding remote " + ri.getName() + ": "
-                            + e.getMessage(), e);
+                    throw new RuntimeException(
+                            "Error adding remote " + ri.getName() + ": " + e.getMessage(), e);
                 }
             } else {
                 // handle upadtes
@@ -246,8 +249,8 @@ public abstract class RepositoryEditFormPanel extends Panel {
                             .setPassword(ri.getPassword());
                     addop.call();
                 } catch (RuntimeException e) {
-                    throw new RuntimeException("Error updating remote " + ri.getName() + ": "
-                            + e.getMessage(), e);
+                    throw new RuntimeException(
+                            "Error updating remote " + ri.getName() + ": " + e.getMessage(), e);
                 }
 
             }
