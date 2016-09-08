@@ -25,7 +25,7 @@ RUN ln -s /var/lib/tomcat7/common $CATALINA_HOME/common && \
 
 # Download geoserver sources and install it
 RUN \
-    git clone -b fiware_rel_4.x https://github.com/Cyberlightning/geoserver.git && \
+    git clone -b fiware_rel_5.x https://github.com/Cyberlightning/geoserver.git && \
     cd /geoserver/src && \
     mvn clean install -DdownloadSources=false -Pw3ds -Pdds && \
     cd /geoserver && \
@@ -35,15 +35,15 @@ RUN \
 # Download and unzip test client
 RUN \
     cd /usr/share/tomcat7/webapps/ && \
-    wget --no-check-certificate https://forge.fiware.org/frs/download.php/1685/GISDataProvider-test_client_4.4.3.zip && \
-    unzip GISDataProvider-test_client_4.4.3.zip && \
-    rm GISDataProvider-test_client_4.4.3.zip
+    wget --no-check-certificate https://forge.fiware.org/frs/download.php/1764/GISDataProvider-test_client_5.4.3.zip && \
+    unzip GISDataProvider-test_client_5.4.3.zip && \
+    rm GISDataProvider-test_client_5.4.3.zip
 
 RUN \
     cd /usr/share/tomcat7/webapps/geoserver/data && \
-    wget --no-check-certificate https://forge.fiware.org/frs/download.php/1687/FIWARE-Test_asset_4.4.3.zip && \
-    unzip FIWARE-Test_asset_4.4.3.zip && \
-    rm FIWARE-Test_asset_4.4.3.zip    
+    wget --no-check-certificate https://forge.fiware.org/frs/download.php/1763/FIWARE-Test_asset_5.4.3.zip && \
+    unzip FIWARE-Test_asset_5.4.3.zip && \
+    rm FIWARE-Test_asset_5.4.3.zip    
 
 EXPOSE 8080
 CMD ["catalina.sh", "run"]
